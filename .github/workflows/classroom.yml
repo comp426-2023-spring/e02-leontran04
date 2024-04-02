@@ -1,0 +1,142 @@
+name: Autograding Tests
+'on':
+- push
+- workflow_dispatch
+- repository_dispatch
+permissions:
+  checks: write
+  actions: read
+  contents: read
+jobs:
+  run-autograding-tests:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-classroom[bot]'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Node version
+      id: node-version
+      uses: education/autograding-command-grader@v1
+      with:
+        test-name: Node version
+        setup-command: npm install
+        command: node -v && echo "Node is working."
+        timeout: 10
+    - name: Validate HTML
+      id: validate-html
+      uses: education/autograding-io-grader@v1
+      with:
+        test-name: Validate HTML
+        setup-command: npm i -g html-validate
+        command: html-validate ./public/*.html
+        input: ''
+        expected-output: ''
+        comparison-method: exact
+        timeout: 10
+        max-score: 50000
+    - name: Validate CSS
+      id: validate-css
+      uses: education/autograding-io-grader@v1
+      with:
+        test-name: Validate CSS
+        setup-command: npm install -g css-validator
+        command: css-validator ./public/*.css
+        input: ''
+        expected-output: ''
+        comparison-method: exact
+        timeout: 10
+        max-score: 50000
+    - name: Front end being served
+      id: front-end-being-served
+      uses: education/autograding-io-grader@v1
+      with:
+        test-name: Front end being served
+        setup-command: ''
+        command: PORT="$(shuf -i 2000-65535 -n 1)"; (timeout --signal=SIGINT 5 node
+          server.js --port=$PORT; exit 0) & sleep 1s && curl -s http://localhost:${PORT}
+          && sleep 5s
+        input: ''
+        expected-output: script src=
+        comparison-method: contains
+        timeout: 10
+        max-score: 50000
+    - name: Back end being served
+      id: back-end-being-served
+      uses: education/autograding-io-grader@v1
+      with:
+        test-name: Back end being served
+        setup-command: ''
+        command: PORT="$(shuf -i 2000-65535 -n 1)"; (timeout --signal=SIGINT 5 node
+          server.js --port=$PORT; exit 0) & sleep 1s && curl -s http://localhost:${PORT}/app/
+          && sleep 5s
+        input: ''
+        expected-output: 200 OK
+        comparison-method: contains
+        timeout: 10
+        max-score: 50000
+    - name: Screenshot interface
+      id: screenshot-interface
+      uses: education/autograding-io-grader@v1
+      with:
+        test-name: Screenshot interface
+        setup-command: ''
+        command: ls docs
+        input: ''
+        expected-output: 01-interface
+        comparison-method: contains
+        timeout: 10
+        max-score: 25000
+    - name: Screenshot results
+      id: screenshot-results
+      uses: education/autograding-io-grader@v1
+      with:
+        test-name: Screenshot results
+        setup-command: ''
+        command: ls docs
+        input: ''
+        expected-output: 02-result
+        comparison-method: contains
+        timeout: 10
+        max-score: 25000
+    - name: Interface run test
+      id: interface-run-test
+      uses: education/autograding-io-grader@v1
+      with:
+        test-name: Interface run test
+        setup-command: "#npm i -g puppeteer"
+        command: echo "This is a really experimental test to see if we can make curl
+          click a button in your interface and submit a default action. It's going
+          to fail for right now. If I can't get it working, I'm just going to give
+          you the points for it."
+        input: ''
+        expected-output: Nope
+        comparison-method: contains
+        timeout: 10
+    - name: Information
+      id: information
+      uses: education/autograding-command-grader@v1
+      with:
+        test-name: Information
+        setup-command: ''
+        command: echo "I am still configuring and testing one-liner tests for the
+          autograder to make sure that they actually function and catch as many edge
+          and corner cases as possible. You should know by now how to tell if your
+          code is working or not. And if you do not and you are relying on the autograder
+          to tell you, then I can't really help you because I've been telling you
+          not to do that exact thing since day one. So, good luck, I guess. ¯\_(ツ)_/¯
+          - @jdmar3"
+        timeout: 10
+    - name: Autograding Reporter
+      uses: education/autograding-grading-reporter@v1
+      env:
+        NODE-VERSION_RESULTS: "${{steps.node-version.outputs.result}}"
+        VALIDATE-HTML_RESULTS: "${{steps.validate-html.outputs.result}}"
+        VALIDATE-CSS_RESULTS: "${{steps.validate-css.outputs.result}}"
+        FRONT-END-BEING-SERVED_RESULTS: "${{steps.front-end-being-served.outputs.result}}"
+        BACK-END-BEING-SERVED_RESULTS: "${{steps.back-end-being-served.outputs.result}}"
+        SCREENSHOT-INTERFACE_RESULTS: "${{steps.screenshot-interface.outputs.result}}"
+        SCREENSHOT-RESULTS_RESULTS: "${{steps.screenshot-results.outputs.result}}"
+        INTERFACE-RUN-TEST_RESULTS: "${{steps.interface-run-test.outputs.result}}"
+        INFORMATION_RESULTS: "${{steps.information.outputs.result}}"
+      with:
+        runners: node-version,validate-html,validate-css,front-end-being-served,back-end-being-served,screenshot-interface,screenshot-results,interface-run-test,information
